@@ -121,7 +121,7 @@ static struct proc *allocproc(void)
 found:
     p->pid = allocpid();
     p->state = USED;
-
+    p->traceMask = 0;
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
     {
@@ -164,6 +164,7 @@ static void freeproc(struct proc *p)
     p->chan = 0;
     p->killed = 0;
     p->xstate = 0;
+    p->traceMask = 0;
     p->state = UNUSED;
 }
 
@@ -284,6 +285,7 @@ int fork(void)
         return -1;
     }
     np->sz = p->sz;
+    np->traceMask = p->traceMask;
 
     // copy saved user registers.
     *(np->trapframe) = *(p->trapframe);
