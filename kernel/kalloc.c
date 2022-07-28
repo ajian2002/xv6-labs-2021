@@ -74,3 +74,19 @@ void *kalloc(void)
     if (r) memset((char *)r, 5, PGSIZE);  // fill with junk
     return (void *)r;
 }
+
+uint64 kavlmemsize(void)
+{
+    uint64 count = 0;
+    struct run *r;
+
+    acquire(&kmem.lock);
+    r = kmem.freelist;
+    while (r)
+    {
+        count++;
+        r = r->next;
+    }
+    release(&kmem.lock);
+    return count * PGSIZE;
+}

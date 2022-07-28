@@ -1,3 +1,4 @@
+#include "types.h"
 struct buf;
 struct context;
 struct file;
@@ -63,6 +64,7 @@ void ramdiskrw(struct buf*);
 void* kalloc(void);
 void kfree(void*);
 void kinit(void);
+uint64 kavlmemsize(void);
 
 // log.c
 void initlog(int, struct superblock*);
