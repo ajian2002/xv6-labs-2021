@@ -62,8 +62,34 @@ uint64 sys_sleep(void)
 #ifdef LAB_PGTBL
 int sys_pgaccess(void)
 {
-    // lab pgtbl: your code here.
-    return 0;
+    vmprint(myproc()->pagetable);
+    int n;
+    uint64 addr1, maskArg, masks;
+    masks=0;
+    argaddr(0, &addr1);
+    argint(1, &n);
+    argaddr(2, &maskArg);
+    if(n>40)return -1;
+    char*buf=(char*)addr1;
+    for (int i = 0; i < n; i++)
+    {
+        uint64 pa = walkaddr(myproc()->pagetable,buf[i*PGSIZE]);
+        if (0 == pa)
+        {
+            return -1;
+        }
+        pte_t *realPte = (pte_t *)PA2PTE(pa);
+        if (*realPte & PTE_V&& * realPte & PTE_A)
+        {
+            masks |= (1 << i);
+            (*realPte) = (*realPte)^(1 << i);
+        }
+    }
+    if (0 == copyout(myproc()->pagetable,(uint64) &maskArg, (char *)&masks, sizeof(uint64)))
+    {
+        return 0;
+    }
+    return -1;
 }
 #endif
 
