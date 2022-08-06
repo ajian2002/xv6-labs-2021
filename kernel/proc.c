@@ -205,8 +205,7 @@ pagetable_t proc_pagetable(struct proc *p)
         return 0;
     }
     // map
-    if (mappages(pagetable, USYSCALL, PGSIZE, (uint64)((p->shared_pagetable)),
-                PTE_R | PTE_U) < 0)
+    if (mappages(pagetable, USYSCALL, PGSIZE, (uint64)((p->shared_pagetable)), PTE_R | PTE_U) < 0)
     {
         uvmunmap(pagetable, TRAMPOLINE, 1, 0);
         uvmunmap(pagetable, TRAPFRAME, 1, 0);

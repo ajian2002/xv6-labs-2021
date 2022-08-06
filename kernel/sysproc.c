@@ -1,3 +1,4 @@
+
 #include "types.h"
 #include "riscv.h"
 #include "param.h"
@@ -62,34 +63,29 @@ uint64 sys_sleep(void)
 #ifdef LAB_PGTBL
 int sys_pgaccess(void)
 {
-    vmprint(myproc()->pagetable);
+    // vmprint(myproc()->pagetable);
     int n;
     uint64 addr1, maskArg, masks;
-    masks=0;
+    masks = 0;
     argaddr(0, &addr1);
     argint(1, &n);
     argaddr(2, &maskArg);
-    if(n>40)return -1;
-    char*buf=(char*)addr1;
+    // printf("%p %d %p\n", addr1, n, maskArg);
+    if (n > 40) return -1;
+    char *buf = (char *)addr1;
     for (int i = 0; i < n; i++)
     {
-        uint64 pa = walkaddr(myproc()->pagetable,buf[i*PGSIZE]);
-        if (0 == pa)
-        {
-            return -1;
-        }
-        pte_t *realPte = (pte_t *)PA2PTE(pa);
-        if (*realPte & PTE_V&& * realPte & PTE_A)
+        // printf("[%d]va=%p ", i, &buf[i * PGSIZE]);
+        pte_t *realPte = walk(myproc()->pagetable, (uint64)&buf[i * PGSIZE], 0);
+        // printf("pte=%p %d\n", realPte,*realPte);
+        if (*realPte & PTE_A)
         {
             masks |= (1 << i);
-            (*realPte) = (*realPte)^(1 << i);
+            // printf("mask=%d ",i);
+            (*realPte) = (*realPte) ^ PTE_A;
         }
     }
-    if (0 == copyout(myproc()->pagetable,(uint64) &maskArg, (char *)&masks, sizeof(uint64)))
-    {
-        return 0;
-    }
-    return -1;
+    return copyout(myproc()->pagetable, maskArg, (char *)&masks, sizeof(masks));
 }
 #endif
 
