@@ -231,6 +231,16 @@ static inline void sfence_vma()
     asm volatile("sfence.vma zero, zero");
 }
 
+// The GCC compiler stores the frame pointer of the currently executing function in the register s0.
+// Add the following function to kernel/riscv.h
+// 并在回溯中 调用此函数以读取当前帧指针。此函数使用内联汇编来读取s0。
+static inline uint64 r_fp()
+{
+    uint64 x;
+    asm volatile("mv %0, s0" : "=r"(x));
+    return x;
+}
+
 #define PGSIZE 4096  // bytes per page
 #define PGSHIFT 12   // bits of offset within a page
 
