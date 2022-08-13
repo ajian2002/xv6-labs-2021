@@ -1,3 +1,4 @@
+
 #include "types.h"
 #include "riscv.h"
 #include "defs.h"
@@ -76,4 +77,25 @@ uint64 sys_uptime(void)
     xticks = ticks;
     release(&tickslock);
     return xticks;
+}
+uint64 sys_sigalarm(void)
+{
+    int timeout;
+    argint(0, &timeout);
+    void (*fun)(void);
+    uint64 funaddr;
+    argaddr(1, &funaddr);
+    fun = (void (*)(void))funaddr;
+    // printf("k:fun=%p\n", fun);
+    myproc()->timeout = timeout;
+    myproc()->callbackSigalarm = fun;
+    myproc()->timeInterval = 0;
+    return 0;
+}
+uint64 sys_sigreturn(void)
+{
+    // printf("helloo\n");
+    memcpy(myproc()->trapframe, myproc()->trapframe_back, sizeof(struct trapframe));
+    myproc()->running = 0;
+    return 0;
 }

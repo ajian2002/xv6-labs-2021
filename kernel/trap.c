@@ -1,3 +1,4 @@
+
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -59,6 +60,24 @@ void usertrap(void)
     else if ((which_dev = devintr()) != 0)
     {
         // ok
+        // printf("%d %d \n", p->timeout, p->timeInterval);
+        if (which_dev == 2)
+        {
+            if (p->timeout > 0&&p->running==0)
+            {
+                printf("ssss\n");
+                p->timeInterval++;
+                if (p->timeInterval >= p->timeout)
+                {
+                    p->running = 1;
+                    p->timeInterval = 0;
+                    p->trapframe->kernel_satp=r_satp();
+                    memcpy(p->trapframe_back, p->trapframe, sizeof(struct trapframe));
+                    p->trapframe->epc= (uint64)((p->callbackSigalarm));
+                    printf("sss\n");
+                }
+            }
+        }
     }
     else
     {
