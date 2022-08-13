@@ -123,8 +123,8 @@ found:
     p->state = USED;
     p->timeout = 0;
     p->timeInterval = 0;
-    p->callbackSigalarm=(void*)0;
-    p->running=0;
+    p->callbackSigalarm = (void *)0;
+    p->running = 0;
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
     {
@@ -167,7 +167,7 @@ static void freeproc(struct proc *p)
     if (p->pagetable) proc_freepagetable(p->pagetable, p->sz);
     p->pagetable = 0;
     p->timeout = 0;
-    p->running=0;
+    p->running = 0;
     p->timeInterval = 0;
     p->callbackSigalarm = (void *)0;
     p->sz = 0;
