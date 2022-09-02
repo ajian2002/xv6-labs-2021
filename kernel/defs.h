@@ -63,6 +63,7 @@ void ramdiskrw(struct buf*);
 void* kalloc(void);
 void kfree(void*);
 void kinit(void);
+int cow_alloc(pagetable_t pagetable, uint64 va);
 
 // log.c
 void initlog(int, struct superblock*);
@@ -130,9 +131,10 @@ char* safestrcpy(char*, const char*, int);
 int strlen(const char*);
 int strncmp(const char*, const char*, uint);
 char* strncpy(char*, const char*, int);
+void* memcpy(void* dst, const void* src, uint n);
 
-// syscall.c
-int argint(int, int*);
+    // syscall.c
+    int argint(int, int*);
 int argstr(int, char*, int);
 int argaddr(int, uint64*);
 int fetchstr(uint64, char*, int);
@@ -167,6 +169,7 @@ void uvmfree(pagetable_t, uint64);
 void uvmunmap(pagetable_t, uint64, uint64, int);
 void uvmclear(pagetable_t, uint64);
 uint64 walkaddr(pagetable_t, uint64);
+pte_t* walk(pagetable_t pagetable, uint64 va, int alloc);
 int copyout(pagetable_t, uint64, char*, uint64);
 int copyin(pagetable_t, char*, uint64, uint64);
 int copyinstr(pagetable_t, char*, uint64, uint64);

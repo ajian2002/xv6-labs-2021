@@ -10,6 +10,7 @@ struct spinlock tickslock;
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
+extern int pgcount[PGCOUNT];
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -43,7 +44,8 @@ void usertrap(void)
     if (r_scause() == 8)
     {
         // system call
-
+        // ECALL进入到supervisor mode对应的是8
+        // 普通系统调用
         if (p->killed) exit(-1);
 
         // sepc points to the ecall instruction,
@@ -60,13 +62,34 @@ void usertrap(void)
     {
         // ok
     }
+    else if (r_scause() == 15)
+    {
+        //比如，
+        // 13d表示是因为load引起的page fault；
+        // 15f表示是因为store引起的page fault；
+        // 12c表示是因为指令执行引起的page fault。
+        // 所以第二个信息存在SCAUSE寄存器中，其中总共有3个类型的原因与page
+        // fault相关，分别是读、写和指令.
+
+        uint64 va = r_stval();
+        if (va >= p->sz)
+        {
+            p->killed = 1;
+            goto err;
+        }
+        if (cow_alloc(p->pagetable, va) < 0)
+        {
+            p->killed = 1;
+            goto err;
+        }
+    }
     else
     {
         printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
         printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
         p->killed = 1;
     }
-
+err:
     if (p->killed) exit(-1);
 
     // give up the CPU if this is a timer interrupt.

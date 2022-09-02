@@ -10,6 +10,8 @@ struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
 
+int pgcount[PGCOUNT];
+
 struct proc *initproc;
 
 int nextpid = 1;
