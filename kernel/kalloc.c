@@ -95,7 +95,7 @@ int cow_alloc(pagetable_t pagetable, uint64 va)
     pte_t *pte = walk(pagetable, va, 0);
     if (pte == 0) return -1;
     uint64 pa = walkaddr(pagetable, va);
-    if (pa == 0||pa<(uint64)end) return -1;
+    if (pa == 0 || pa < (uint64)end) return -1;
     uint flags = PTE_FLAGS(*pte);
     if (!(flags & PTE_V)) return -1;
 

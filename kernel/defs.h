@@ -133,8 +133,8 @@ int strncmp(const char*, const char*, uint);
 char* strncpy(char*, const char*, int);
 void* memcpy(void* dst, const void* src, uint n);
 
-    // syscall.c
-    int argint(int, int*);
+// syscall.c
+int argint(int, int*);
 int argstr(int, char*, int);
 int argaddr(int, uint64*);
 int fetchstr(uint64, char*, int);
