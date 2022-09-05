@@ -6,7 +6,8 @@
 
 static int nthread = 1;
 static int round = 0;
-
+pthread_mutex_t thread_mutex;
+pthread_mutex_t round_mutex;
 struct barrier
 {
     pthread_mutex_t barrier_mutex;
@@ -18,12 +19,32 @@ struct barrier
 static void barrier_init(void)
 {
     assert(pthread_mutex_init(&bstate.barrier_mutex, NULL) == 0);
+    assert(pthread_mutex_init(&thread_mutex, NULL) == 0);
+    assert(pthread_mutex_init(&round_mutex, NULL) == 0);
     assert(pthread_cond_init(&bstate.barrier_cond, NULL) == 0);
     bstate.nthread = 0;
 }
 
 static void barrier()
 {
+    pthread_mutex_lock(&bstate.barrier_mutex);
+    bstate.nthread++;
+    int rr = bstate.round ;
+    if (bstate.nthread >= nthread * (rr+1))
+    {
+        bstate.round++;
+        pthread_cond_broadcast(&bstate.barrier_cond);
+    }
+    else
+    {
+        while (bstate.nthread < nthread * (rr + 1))
+        {
+            pthread_cond_wait(&bstate.barrier_cond, &bstate.barrier_mutex);
+        }
+    }
+    pthread_mutex_unlock(&bstate.barrier_mutex);
+    // bstate.nthread = 0;
+
     // YOUR CODE HERE
     //
     // Block until all threads have called barrier() and
@@ -37,7 +58,7 @@ static void *thread(void *xa)
     long delay;
     int i;
 
-    for (i = 0; i < 20000; i++)
+    for (i = 0; i < 20; i++)
     {
         int t = bstate.round;
         assert(i == t);
