@@ -142,27 +142,21 @@ static void e1000_recv(void)
     //
     // acquire(&e1000_lock);
     int index = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
-    // printf("..index=%d,regs[E1000_TDT] & E1000_TXD_STAT_DD=%d\n", index,
-    //        (rx_ring[index].status & E1000_RXD_STAT_DD) > 0 ? 1 : 0);
-    struct mbuf *buf;
-    while ((rx_ring[index].status & E1000_RXD_STAT_DD))
+    struct mbuf *oldbuf, *newbuf;
+    while (rx_ring[index].status & E1000_RXD_STAT_DD)
     {
+        newbuf = mbufalloc(0);
         acquire(&e1000_lock);
-        // printf("before:rx_ring[%d].addr=%x,len=%d\n", index, rx_ring[index].addr,
-        //        rx_ring[index].length);
-        // rx_mbufs[index]->len = rx_ring[index].length;
-        mbufput(rx_mbufs[index], rx_ring[index].length);
-        buf = rx_mbufs[index];
-        // printf("recv:next:%x,head=%s,len=%d,value=%s\n", buf->next, buf->head, buf->len,
-        // buf->buf);
-        rx_mbufs[index] = mbufalloc(0);
-        rx_ring[index].addr = (uint64)rx_mbufs[index]->head;
-        // printf("after:rx_ring[%d].addr=%x,len=%d\n", index, rx_ring[index].addr,
-        // rx_ring[index].length);
+        rx_mbufs[index]->len = rx_ring[index].length;
+        // mbufput(rx_mbufs[index], rx_ring[index].length);
+
+        oldbuf = rx_mbufs[index];
+        rx_mbufs[index] = newbuf;
+        rx_ring[index].addr = (uint64)newbuf->head;
         regs[E1000_RDT] = index;
-        index = (index + 1) % RX_RING_SIZE;
         release(&e1000_lock);
-        net_rx(buf);
+        index = (index + 1) % RX_RING_SIZE;
+        net_rx(oldbuf);
     }
 }
 
