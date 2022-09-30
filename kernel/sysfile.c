@@ -101,6 +101,7 @@ uint64 sys_fstat(void)
 }
 
 // Create the path new as a link to the same inode as old.
+// old -->new
 uint64 sys_link(void)
 {
     char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
@@ -127,8 +128,10 @@ uint64 sys_link(void)
     iupdate(ip);
     iunlock(ip);
 
+    // Namei（kernel/fs.c:661）计算path并返回相应的inode。函数nameiparent是一个变体：它在最后一个元素之前停止，返回父目录的inode并将最后一个元素复制到name中。
     if ((dp = nameiparent(new, name)) == 0) goto bad;
     ilock(dp);
+    //函数dirlink（kernel/fs.c:554）将给定名称和inode编号的新目录条目写入目录dp。如果名称已经存在，dirlink将返回一个错误（kernel/fs.c:560-564）。
     if (dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0)
     {
         iunlockput(dp);
@@ -259,16 +262,17 @@ static struct inode *create(char *path, short type, short major, short minor)
     return ip;
 }
 
-uint64 sys_open(void)
+uint64 real_sys_open(char path[MAXPATH], int omode, int count)
 {
-    char path[MAXPATH];
-    int fd, omode;
+    if (count > 10)
+    {
+        printf("open too deep\n");
+        return -1;
+    }
+    // printf("open %s\n", path);
+    int fd;
     struct file *f;
     struct inode *ip;
-    int n;
-
-    if ((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0) return -1;
-
     begin_op();
 
     if (omode & O_CREATE)
@@ -294,6 +298,35 @@ uint64 sys_open(void)
             end_op();
             return -1;
         }
+        /**************************
+         *        SYMLINK         *
+         *************************/
+
+        if (ip->type == T_SYMLINK && (omode & O_NOFOLLOW) == 0)
+        {
+            char newpath[MAXPATH];
+            memset(newpath, 0, MAXPATH);
+            // int len, total;
+            // if ((total = readi(ip, 0, (uint64)&len, 0, sizeof(int))) != sizeof(int))
+            // {
+            //     printf("open link file %s error %d\n", path, total);
+            //     iunlockput(ip);
+            //     end_op();
+            //     return -1;
+            // }
+            if ((readi(ip, 0, (uint64)newpath, 0, MAXPATH)) != MAXPATH)
+            {
+                // printf("open link file %s error2 %d\n", path, total);
+                iunlockput(ip);
+                end_op();
+                return -1;
+            }
+            iunlockput(ip);
+            end_op();
+            count++;
+            printf("open %s---->%s\n", path, newpath);
+            return real_sys_open(newpath, omode, count);
+        }
     }
 
     if (ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV))
@@ -302,6 +335,7 @@ uint64 sys_open(void)
         end_op();
         return -1;
     }
+
 
     if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0)
     {
@@ -334,6 +368,15 @@ uint64 sys_open(void)
     end_op();
 
     return fd;
+}
+uint64 sys_open(void)
+{
+    char path[MAXPATH];
+    int omode;
+    int n;
+    int count = 0;
+    if ((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0) return -1;
+    return real_sys_open(path, omode, count);
 }
 
 uint64 sys_mkdir(void)
@@ -464,5 +507,31 @@ uint64 sys_pipe(void)
         fileclose(wf);
         return -1;
     }
+    return 0;
+}
+uint64 sys_symlink(void)
+{
+    // int symlink(char *target, char *path);
+    // path(new)-->target
+    char target[MAXPATH], path[MAXPATH];
+    memset(target, 0, MAXPATH);
+    memset(path, 0, MAXPATH);
+    struct inode *ip;
+    if (argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0) return -1;
+    // int len = strlen(target);
+    begin_op();
+
+    if ((ip = create(path, T_SYMLINK, 0, 0)) == 0)
+    {
+        end_op();
+        return -1;
+    }
+    // if (writei(ip, 0, (uint64)&len, 0, sizeof(int)) != sizeof(int)) panic("symlink: writei1
+    // error");
+    if (writei(ip, 0, (uint64)target, 0, MAXPATH) != MAXPATH) panic("symlink: writei2 error");
+    // iupdate(ip);
+    iunlockput(ip);
+    end_op();
+    printf("create %s success--->%s\n", path, target);
     return 0;
 }
