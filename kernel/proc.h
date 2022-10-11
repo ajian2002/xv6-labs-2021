@@ -92,6 +92,16 @@ enum procstate
     RUNNING,
     ZOMBIE
 };
+struct VMA
+{
+    uint64 used;
+    uint64 v_start;
+    uint64 v_end;
+    uint64 private;
+    uint64 shared;
+    uint64 fd;
+    uint64 offset;
+};
 
 // Per-process state
 struct proc
@@ -117,4 +127,5 @@ struct proc
     struct file *ofile[NOFILE];   // Open files
     struct inode *cwd;            // Current directory
     char name[16];                // Process name (debugging)
+    struct VMA *vmas[16];
 };
