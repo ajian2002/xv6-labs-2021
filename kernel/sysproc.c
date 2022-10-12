@@ -145,7 +145,7 @@ uint64 sys_mmap(void)
     vma->offset = offset;
     vma->file = file;
     filedup(file);  // count ++
-    printf("mmap[%d][%p --------------------%p]\n", i, vma->v_start, vma->v_end);
+    printf("mmap[%d][%p --------%p]\n", i, vma->v_start, vma->v_end);
     return addr;
 }
 
@@ -171,7 +171,7 @@ uint64 realy_munmap(uint64 addr, int length)
                 }
         }
         if (vma == 0) continue;
-        printf("unvma[%d][%p --%p]\n", i, vma->v_start, vma->v_end);
+        printf("umap[%d][%p --%p]\n", i, vma->v_start, vma->v_end);
         if (vma->flags & MAP_SHARED)
         {
             // struct inode *ip = vma->file->ip;

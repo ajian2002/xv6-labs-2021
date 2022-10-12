@@ -43,8 +43,7 @@ int reallymapped(int val)
     {
         if (myproc()->vmas[i]->used == 1)
         {
-            printf("vma[%d]-->[%p---%p]\n", i, myproc()->vmas[i]->v_start,
-                   myproc()->vmas[i]->v_end);
+            printf("trap[%d][%p---%p]\n", i, myproc()->vmas[i]->v_start, myproc()->vmas[i]->v_end);
             if (myproc()->vmas[i]->v_start <= vdval && myproc()->vmas[i]->v_end > vdval)
             {
                 vma = myproc()->vmas[i];

@@ -301,7 +301,23 @@ int fork(void)
     for (i = 0; i < NOFILE; i++)
         if (p->ofile[i]) np->ofile[i] = filedup(p->ofile[i]);
     np->cwd = idup(p->cwd);
-
+    for (int i = 0; i < 16; i++)
+    {
+        if (p->vmas[i]->used)
+        {
+            struct VMA *old = p->vmas[i];
+            struct VMA *new = np->vmas[i];
+            new->used = old->used;
+            new->v_start = old->v_start;
+            new->v_end = old->v_end;
+            new->prot = old->prot;
+            new->flags = old->flags;
+            new->fd = old->fd;
+            new->offset = old->offset;
+            new->file = np->ofile[old->fd];
+            filedup(new->file);  // count ++
+        }
+    }
     safestrcpy(np->name, p->name, sizeof(p->name));
 
     pid = np->pid;
