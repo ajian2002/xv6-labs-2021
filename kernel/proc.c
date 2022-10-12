@@ -138,6 +138,10 @@ found:
         release(&p->lock);
         return 0;
     }
+    for (int i = 0; i < 16; i++)
+    {
+        p->vmas[i] = kalloc();
+    }
 
     // Set up new context to start executing at forkret,
     // which returns to user space.

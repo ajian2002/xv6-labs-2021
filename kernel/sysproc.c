@@ -6,6 +6,10 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "fcntl.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 uint64 sys_exit(void)
 {
@@ -94,10 +98,24 @@ uint64 sys_mmap(void)
     argint(4, &fd);
     argint(5, &offset);
     //假设偏移量为零（它是文件中映射的起点）
-    printf("mmap::1:%p,2:%d,3:%d,4:%d,5:%d\n", addr, length, prot, flags, fd, offset);
+    // printf("mmap::1:%p,2:%d,3:%d,4:%d,5:%d\n", addr, length, prot, flags, fd, offset);
     // pagetable_t pt = myproc()->pagetable;  // uint64*
-    // struct file *file = myproc()->ofile[fd];
     addr = myproc()->sz;
+    struct file *file = myproc()->ofile[fd];
+    if (prot & PROT_READ)
+    {
+        if (file->readable != 1)
+        {
+            return -1;
+        }
+    }
+    if (prot & PROT_WRITE && flags & MAP_SHARED)
+    {
+        if (file->writable != 1)
+        {
+            return -1;
+        }
+    }
     myproc()->sz += length;
 
     // struct VMA
@@ -110,18 +128,23 @@ uint64 sys_mmap(void)
     //     uint64 offset;
     // };
 
-    myproc()->vmas[fd] = kalloc();
-    struct VMA *vma = (myproc()->vmas[fd]);
+    // fcntl(fd, prot);
+
+    struct VMA *vma = myproc()->vmas[fd];
     vma->used = 1;
     vma->v_start = addr;
     vma->v_end = addr + length;
-    vma->private = prot;
-    vma->shared = flags;
+    vma->prot = prot;
+    vma->flags = flags;
     vma->fd = fd;
     vma->offset = offset;
+    vma->file = file;
+    filedup(file);  // count ++
+
+    // printf("vma[used=%d start:%d end=%d private=%d shared=%d fd=%d offset=%d]\n", vma->used,
+    //        vma->v_start, vma->v_end, vma->prot, vma->flags, vma->fd, vma->offset);
     return addr;
 }
-
 uint64 sys_munmap(void)
 {
     //    int munmap(void* addr, int length);
@@ -133,6 +156,44 @@ uint64 sys_munmap(void)
     argaddr(0, &addr);
     argint(1, &length);
     printf("munmap::1:%p,2:%d\n", addr, length);
+    if (length <= 0) return length;
 
-    return -1;
+    uint64 udval = PGROUNDDOWN(addr);
+    uint64 uuval = PGROUNDUP(addr + length);
+    struct proc *p = myproc();
+    struct VMA *vma = 0;
+    for (uint64 ud = udval; ud < uuval; ud += PGSIZE)
+    {
+        vma = 0;
+        for (int i = 0; i < 16; i++)
+        {
+            if (myproc()->vmas[i]->used == 1)
+                if (myproc()->vmas[i]->v_start <= ud && myproc()->vmas[i]->v_end >= ud)
+                {
+                    vma = myproc()->vmas[i];
+                    break;
+                }
+        }
+        if (vma == 0) continue;
+        printf("vma=%p --%p\n", vma->v_start, vma->v_end);
+        if (vma->flags & MAP_SHARED)
+        {
+            // struct inode *ip = vma->file->ip;
+            // acquiresleep(&ip->lock);
+            // writei(ip, 1, ud, vma->offset + ud - vma->v_start, PGSIZE);
+            filewrite(vma->file, ud, PGSIZE);
+            // releasesleep(&ip->lock);
+        }
+        pte_t *pte;
+        if ((pte = walk(p->pagetable, ud, 0)) == 0) return -1;
+        if ((*pte & PTE_V) == 0) continue;
+        uvmunmap(p->pagetable, ud, 1, 1);
+    }
+    if (vma->v_start == udval && vma->v_end == uuval)
+    {
+        fileclose(vma->file);
+        vma->used = 0;
+    }
+
+    return 0;
 }

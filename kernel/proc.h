@@ -97,10 +97,11 @@ struct VMA
     uint64 used;
     uint64 v_start;
     uint64 v_end;
-    uint64 private;
-    uint64 shared;
+    uint64 prot;
+    uint64 flags;
     uint64 fd;
     uint64 offset;
+    struct file *file;
 };
 
 // Per-process state

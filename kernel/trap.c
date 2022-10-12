@@ -4,8 +4,90 @@
 #include "riscv.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "fcntl.h"
 #include "defs.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
+char *getReasion(int cause)
+{
+    if (cause == 12)
+    {
+        return "x";
+    }
+    if (cause == 13)
+    {
+        return "r";
+    }
+    if (cause == 15)
+    {
+        return "w";
+    }
+    return "?";
+    // 12c表示是因为指令执行引起的page fault。
+    // 13d表示是因为load引起的page fault；
+    // 15f表示是因为store引起的page fault；
+    // 所以第二个信息存在SCAUSE寄存器中，其中总共有3个类型的原因与page
+    // fault相关，分别是读、写和指令.
+}
+
+int reallymapped(int val)
+{
+    struct proc *p = myproc();
+    uint64 vdval = PGROUNDDOWN(val);
+    uint64 vuval = PGROUNDUP(val);
+
+    struct VMA *vma = 0;
+    for (int i = 0; i < 16; i++)
+    {
+        if (myproc()->vmas[i]->used == 1 && myproc()->vmas[i]->v_start <= vdval &&
+            myproc()->vmas[i]->v_end >= vdval)
+        {
+            vma = myproc()->vmas[i];
+            break;
+        }
+    }
+    if (vma == 0)
+    {
+        printf("mmap:::not found %p\n", vdval);
+        return -1;
+    }
+
+    uint64 len = PGSIZE;
+    if (vuval > vma->v_end)
+    {
+        len = vma->v_end - vdval;
+    }
+
+    int flags = PTE_V | PTE_U;
+    if (vma->prot & PROT_READ)
+    {
+        flags |= PTE_R;
+    }
+    if (vma->prot & PROT_WRITE)
+    {
+        flags |= PTE_W;
+    }
+
+    char *pa = kalloc();
+    memset(pa, 0, PGSIZE);
+
+    struct inode *ip = vma->file->ip;
+    acquiresleep(&ip->lock);
+    // int tot =
+    readi(vma->file->ip, 0, (uint64)pa, vma->offset + vdval - vma->v_start, PGSIZE);
+    releasesleep(&ip->lock);
+    // printf("read=%d\n", tot);
+
+    if (0 != mappages(p->pagetable, vdval, len, (uint64)pa, flags))
+    {
+        kfree(pa);
+        printf("mmap::error;\n");
+        return -1;
+    }
+    return 0;
+}
 struct spinlock tickslock;
 uint ticks;
 
@@ -39,8 +121,8 @@ void usertrap(void)
 
     // save user program counter.
     p->trapframe->epc = r_sepc();
-
-    if (r_scause() == 8)
+    int cause = r_scause();
+    if (cause == 8)
     {
         // system call
 
@@ -60,9 +142,26 @@ void usertrap(void)
     {
         // ok
     }
+    else if (cause == 12 || cause == 13 || cause == 15)
+    {
+        //比如，
+        // 12c表示是因为指令执行引起的page fault。
+        // 13d表示是因为load引起的page fault；
+        // 15f表示是因为store引起的page fault；
+        // 所以第二个信息存在SCAUSE寄存器中，其中总共有3个类型的原因与page
+        // fault相关，分别是读、写和指令.
+        uint64 val = r_stval();
+        // uint64 pc = r_sepc();
+        // printf("reasion=%s pid=%d\n", getReasion(cause), p->pid);
+        // printf("sepc=%p stval=%p\n", pc, val);
+        if (0 != reallymapped(val))
+        {
+            p->killed = 1;
+        }
+    }
     else
     {
-        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            usertrap(): unexpected scause %s pid=%d\n", getReasion(cause), p->pid);
         printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
         p->killed = 1;
     }
