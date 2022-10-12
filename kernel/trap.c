@@ -41,11 +41,15 @@ int reallymapped(int val)
     struct VMA *vma = 0;
     for (int i = 0; i < 16; i++)
     {
-        if (myproc()->vmas[i]->used == 1 && myproc()->vmas[i]->v_start <= vdval &&
-            myproc()->vmas[i]->v_end >= vdval)
+        if (myproc()->vmas[i]->used == 1)
         {
-            vma = myproc()->vmas[i];
-            break;
+            printf("vma[%d]-->[%p---%p]\n", i, myproc()->vmas[i]->v_start,
+                   myproc()->vmas[i]->v_end);
+            if (myproc()->vmas[i]->v_start <= vdval && myproc()->vmas[i]->v_end > vdval)
+            {
+                vma = myproc()->vmas[i];
+                break;
+            }
         }
     }
     if (vma == 0)

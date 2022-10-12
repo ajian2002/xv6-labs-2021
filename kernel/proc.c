@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+extern uint64 realy_munmap(uint64 addr, int length);
 
 struct cpu cpus[NCPU];
 
@@ -141,6 +142,7 @@ found:
     for (int i = 0; i < 16; i++)
     {
         p->vmas[i] = kalloc();
+        memset(p->vmas[i], 0, sizeof(struct VMA));
     }
 
     // Set up new context to start executing at forkret,
@@ -352,7 +354,14 @@ void exit(int status)
             p->ofile[fd] = 0;
         }
     }
-
+    for (int i = 0; i < 16; i++)
+    {
+        if (p->vmas[i]->used)
+        {
+            realy_munmap(p->vmas[i]->v_start, p->vmas[i]->v_end - p->vmas[i]->v_start);
+        }
+        kfree(p->vmas[i]);
+    }
     begin_op();
     iput(p->cwd);
     end_op();
